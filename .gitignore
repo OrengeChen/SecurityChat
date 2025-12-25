@@ -1,0 +1,57 @@
+# --- 基础 Python 忽略项 ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- 虚拟环境 (保留你已有的) ---
+.venv/
+venv/
+env/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- P2P 与 SocketIO 特有忽略项 ---
+# 忽略 STUN/ICE 产生的本地日志或临时缓存
+*.log
+# 如果你后续使用环境变量文件存储 API Key 或私钥（强烈推荐）
+.env
+.flaskenv
+
+# --- 数据库与持久化 ---
+*.db
+*.sqlite3
+# 忽略本地测试生成的输出文件
+test_output/
+
+# --- IDE 与编辑器 (完善 JetBrains 与 VS Code) ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# --- 操作系统与杂项 ---
+.DS_Store
+Thumbs.db
+desktop.ini

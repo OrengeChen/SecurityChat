@@ -1,0 +1,2412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Chat - P2P加密聊天系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #0f172a; 
+            color: #f8fafc; 
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .glass { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .chat-gradient { 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); 
+        }
+        .danger-gradient {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        .success-gradient {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        /* 消息样式 */
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            word-break: break-word;
+        }
+        .message-bubble.own {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        .message-bubble.other {
+            background: rgba(30, 41, 59, 0.8);
+            color: #f8fafc;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+        .message-bubble.system {
+            background: rgba(30, 41, 59, 0.5);
+            color: #94a3b8;
+            margin: 0 auto;
+            max-width: 90%;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        
+        /* 在线用户状态 */
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .offline-dot {
+            width: 8px;
+            height: 8px;
+            background: #64748b;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        
+        /* 动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* 确认对话框 */
+        .confirm-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            z-index: 1000;
+            min-width: 320px;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        /* 表情选择器 */
+        .emoji-picker {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 16px;
+            width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            z-index: 1001;
+            display: none;
+        }
+        
+        .emoji-picker.show {
+            display: block;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .emoji-category {
+            margin-bottom: 16px;
+        }
+        
+        .emoji-category-title {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+        }
+        
+        .emoji-item {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .emoji-item:hover {
+            background: rgba(255,255,255,0.1);
+            transform: scale(1.1);
+        }
+        
+        /* 文件上传对话框 */
+        .file-upload-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            z-index: 1000;
+            width: 400px;
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        .file-drop-area {
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .file-drop-area:hover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+        
+        .file-drop-area.dragover {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .file-preview {
+            margin-top: 16px;
+            padding: 12px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .file-preview.show {
+            display: block;
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .file-details {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .file-size {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        
+        .file-remove {
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        /* 文件消息样式 */
+        .file-message {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            margin-top: 8px;
+        }
+        
+        .file-message .file-icon {
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+        }
+        
+        .file-message .file-details {
+            flex: 1;
+        }
+        
+        .file-message .file-name {
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+        
+        .file-message .file-size {
+            font-size: 11px;
+        }
+        
+        .file-download-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .file-download-btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- 左侧导航栏 -->
+    <nav class="w-20 flex flex-col items-center py-6 glass border-r border-slate-700">
+        <div class="w-12 h-12 chat-gradient rounded-2xl flex items-center justify-center mb-10 shadow-lg shadow-blue-500/20">
+            <i class="fas fa-lock text-xl"></i>
+        </div>
+        <div class="space-y-8 flex-1">
+            <i class="fas fa-comment-dots text-xl text-blue-400 cursor-pointer" title="公共聊天"></i>
+            <i class="fas fa-users text-xl text-slate-400 hover:text-white transition cursor-pointer" title="在线用户"></i>
+            <i class="fas fa-shield-alt text-xl text-slate-400 hover:text-white transition cursor-pointer" title="加密设置"></i>
+        </div>
+        <i class="fas fa-cog text-xl text-slate-400 hover:text-white transition cursor-pointer" title="设置"></i>
+    </nav>
+
+    <!-- 登录界面 -->
+    <div id="login-section" class="flex-1 flex flex-col items-center justify-center p-8">
+        <div class="glass rounded-3xl p-10 max-w-md w-full fade-in">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 chat-gradient rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/20">
+                    <i class="fas fa-lock text-2xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold mb-2">Aurora Chat</h1>
+                <p class="text-slate-400">端到端加密 · 真人对真人 · 安全通信</p>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">用户名</label>
+                    <input type="text" id="username" placeholder="输入您的用户名" 
+                           class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-3 px-4 focus:outline-none focus:border-blue-500 transition text-white placeholder-slate-500">
+                </div>
+                
+                <button id="login-btn" class="w-full chat-gradient text-white font-semibold py-3 rounded-xl hover:opacity-90 transition shadow-lg shadow-blue-500/20">
+                    进入聊天室
+                </button>
+                
+                <div id="login-error" class="danger-gradient text-white p-3 rounded-xl text-sm hidden"></div>
+                <div id="login-success" class="success-gradient text-white p-3 rounded-xl text-sm hidden"></div>
+                
+                <div class="text-center text-slate-500 text-sm pt-4 border-t border-slate-800">
+                    <p>系统状态: <span id="backend-status" class="text-red-400">检查中...</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 公共聊天界面 -->
+    <div id="chat-section" class="flex-1 flex flex-col hidden">
+        <!-- 顶部状态栏 -->
+        <header class="h-20 glass flex items-center justify-between px-8 border-b border-slate-700/50">
+            <div class="flex items-center">
+                <div class="w-10 h-10 chat-gradient rounded-full flex items-center justify-center">
+                    <i class="fas fa-user text-sm"></i>
+                </div>
+                <div class="ml-4">
+                    <h3 class="font-bold text-sm" id="current-user">未登录</h3>
+                    <div class="flex items-center">
+                        <span class="online-dot"></span>
+                        <span class="text-xs text-green-500">在线</span>
+                        <span class="text-xs text-slate-500 ml-2">用户数: <span id="online-count">0</span></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex space-x-4">
+                <button id="refresh-users-btn" class="glass px-4 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                    <i class="fas fa-sync-alt mr-2"></i>刷新列表
+                </button>
+                <button id="logout-btn" class="danger-gradient px-4 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                    <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+            <!-- 左侧：在线用户列表 -->
+            <aside class="w-80 glass flex flex-col border-r border-slate-700">
+                <div class="p-6">
+                    <h2 class="text-xl font-bold mb-4">在线用户</h2>
+                    <div class="relative mb-4">
+                        <input type="text" placeholder="搜索用户..." 
+                               class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:border-blue-500 transition text-white placeholder-slate-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-slate-500 text-sm"></i>
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto px-3 pb-6">
+                    <div id="online-users-list" class="space-y-2">
+                        <!-- 在线用户将在这里动态生成 -->
+                        <div class="text-center text-slate-500 py-8">
+                            <i class="fas fa-users text-2xl mb-2"></i>
+                            <p>暂无在线用户</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 p-4 bg-slate-800/30 rounded-xl">
+                        <h4 class="font-semibold text-sm mb-3">P2P连接</h4>
+                        <div class="space-y-3">
+                            <input type="text" id="connect-username" placeholder="输入用户名" 
+                                   class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2 px-4 focus:outline-none focus:border-blue-500 transition text-white placeholder-slate-500 text-sm">
+                            <button id="connect-btn" class="w-full success-gradient text-white font-semibold py-2 rounded-xl hover:opacity-90 transition text-sm">
+                                <i class="fas fa-link mr-2"></i>建立P2P连接
+                            </button>
+                            <div id="connection-status" class="text-xs text-slate-400 mt-2">
+                                <i class="fas fa-plug mr-1"></i>未连接
+                            </div>
+                        </div>
+                        
+                        <!-- P2P聊天会话管理 -->
+                        <div id="p2p-sessions-section" class="mt-4 pt-4 border-t border-slate-700/50 hidden">
+                            <h5 class="font-semibold text-xs mb-2 text-slate-400">我的P2P聊天</h5>
+                            <div id="p2p-sessions-list" class="space-y-2">
+                                <!-- P2P会话将在这里动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 右侧：聊天区域 -->
+            <main class="flex-1 flex flex-col">
+                <!-- 聊天消息区域 -->
+                <section class="flex-1 overflow-y-auto p-6 space-y-4" id="chat-messages">
+                    <div class="message-bubble system fade-in">
+                        <div class="flex items-center justify-center">
+                            <i class="fas fa-shield-alt mr-2"></i>
+                            <span>欢迎来到Aurora Chat！请登录开始真正的用户间通信。</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 消息输入区域 -->
+                <footer class="p-6 border-t border-slate-700/50">
+                    <div class="glass max-w-4xl mx-auto rounded-2xl flex items-center px-4 py-2 shadow-2xl">
+                        <button class="p-2 text-slate-400 hover:text-white transition">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <input type="text" id="message-input" placeholder="输入消息..." disabled
+                               class="flex-1 bg-transparent border-none focus:outline-none px-4 text-sm py-3 text-white placeholder-slate-500">
+                        <button class="p-2 text-slate-400 hover:text-white mx-2 transition">
+                            <i class="far fa-smile"></i>
+                        </button>
+                        <button id="send-btn" disabled
+                                class="chat-gradient w-10 h-10 rounded-xl flex items-center justify-center shadow-lg hover:scale-105 transition">
+                            <i class="fas fa-paper-plane text-xs"></i>
+                        </button>
+                    </div>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- 添加Socket.IO客户端库 -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <script>
+        // 系统状态
+        let currentUser = null;
+        let socket = null;
+        let onlineUsers = [];
+        
+        // 连接到Socket.IO服务器
+        function connectSocketIO() {
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            socket = io({
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
+            
+            socket.on('connect', () => {
+                console.log('Socket.IO连接已建立');
+                document.getElementById('backend-status').textContent = '已连接';
+                document.getElementById('backend-status').className = 'text-green-400';
+                
+                addSystemMessage('WebSocket连接成功！');
+                
+                // 如果已登录，重新注册用户
+                if (currentUser) {
+                    registerUser(currentUser);
+                }
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Socket.IO连接已断开');
+                document.getElementById('backend-status').textContent = '未连接';
+                document.getElementById('backend-status').className = 'text-red-400';
+                
+                addSystemMessage('WebSocket连接断开，正在重连...');
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('Socket.IO连接错误:', error);
+                addSystemMessage('WebSocket连接错误: ' + error.message);
+            });
+            
+            // 注册事件监听器
+            socket.on('registered', (data) => {
+                console.log('用户注册成功:', data.username);
+                addSystemMessage(`用户 ${data.username} 注册成功`);
+            });
+            
+            // 监听注册错误
+            socket.on('register_error', (data) => {
+                console.log('注册错误:', data.error);
+                const errorElement = document.getElementById('login-error');
+                errorElement.textContent = data.error;
+                errorElement.classList.remove('hidden');
+                
+                // 重置登录状态
+                currentUser = null;
+                document.getElementById('login-btn').disabled = false;
+            });
+            
+            socket.on('message', (data) => {
+                console.log('收到消息:', data);
+                addMessage(data.sender, data.content, false);
+            });
+            
+            socket.on('p2p_message', (data) => {
+                console.log('收到P2P消息:', data);
+                addMessage(data.from, data.message, false);
+            });
+            
+            socket.on('user_online', (data) => {
+                console.log('用户上线:', data);
+                handleUserOnline(data);
+            });
+            
+            socket.on('online_users', (data) => {
+                console.log('在线用户列表:', data);
+                onlineUsers = data;
+                updateOnlineUsersCount();
+                updateOnlineUsersList();
+            });
+            
+            // 监听用户下线事件
+            socket.on('user_offline', (data) => {
+                console.log('用户下线:', data);
+                const username = data.username;
+                
+                // 从在线用户列表中移除
+                onlineUsers = onlineUsers.filter(user => user.username !== username);
+                updateOnlineUsersCount();
+                updateOnlineUsersList();
+                
+                addSystemMessage(`用户 ${username} 已下线`);
+            });
+            
+            socket.on('p2p_info', (data) => {
+                console.log('P2P信息:', data);
+            });
+            
+            // 监听P2P连接请求响应
+            socket.on('p2p_connection_initiated', (data) => {
+                console.log('P2P连接初始化:', data);
+                if (data.success) {
+                    document.getElementById('connection-status').innerHTML = `<i class="fas fa-link mr-1"></i>已连接到 ${data.target}`;
+                    document.getElementById('connection-status').className = 'text-xs text-green-400 mt-2';
+                    
+                    // 检查消息内容，只有当连接真正建立时才跳转
+                    const message = data.message || '';
+                    if (message.includes('Connection accepted') || message.includes('Connected to')) {
+                        addSystemMessage(`P2P连接已建立: ${data.target}`);
+                        // 切换到P2P聊天界面
+                        switchToP2PChat(data.target);
+                    } else if (message.includes('Connection request sent')) {
+                        addSystemMessage(`连接请求已发送给 ${data.target}，等待对方接受...`);
+                        // 不跳转，等待对方接受
+                    } else {
+                        addSystemMessage(`P2P连接状态: ${message}`);
+                    }
+                } else {
+                    document.getElementById('connection-status').innerHTML = `<i class="fas fa-unlink mr-1"></i>连接失败`;
+                    document.getElementById('connection-status').className = 'text-xs text-red-400 mt-2';
+                    addSystemMessage(`P2P连接失败: ${data.error || '未知错误'}`);
+                }
+            });
+            
+            // 监听P2P聊天消息
+            socket.on('p2p_chat_message_received', (data) => {
+                console.log('收到P2P聊天消息:', data);
+                
+                // 检查是否加密消息
+                if (data.encrypted && data.encrypted_content && data.session_key) {
+                    console.log('收到加密消息，开始解密...');
+                    
+                    // 解密消息
+                    decryptAndDisplayMessage(data);
+                } else {
+                    // 检查是否在P2P聊天界面
+                    const p2pChatSection = document.getElementById('p2p-chat-section');
+                    if (p2pChatSection) {
+                        addP2PMessage(data.from, data.content, false);
+                    } else {
+                        // 如果不在P2P聊天界面，显示系统消息
+                        addSystemMessage(`收到来自 ${data.from} 的P2P消息: ${data.content}`);
+                    }
+                }
+            });
+            
+            // 解密并显示消息
+            function decryptAndDisplayMessage(data) {
+                console.log('调用解密API:', data);
+                
+                fetch('/api/p2p/chat/decrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        encrypted_content: data.encrypted_content,
+                        session_key: data.session_key
+                    })
+                })
+                .then(response => response.json())
+                .then(decryptData => {
+                    console.log('解密结果:', decryptData);
+                    
+                    if (decryptData.success) {
+                        const decryptedContent = decryptData.decrypted_content;
+                        console.log('解密成功:', decryptedContent);
+                        
+                        // 检查是否在P2P聊天界面
+                        const p2pChatSection = document.getElementById('p2p-chat-section');
+                        if (p2pChatSection) {
+                            addP2PMessage(data.from, `🔓 ${decryptedContent}`, false);
+                            addSystemMessage('消息已解密');
+                        } else {
+                            // 如果不在P2P聊天界面，显示系统消息
+                            addSystemMessage(`收到来自 ${data.from} 的加密消息: ${decryptedContent}`);
+                        }
+                    } else {
+                        console.error('解密失败:', decryptData.error);
+                        
+                        // 检查是否在P2P聊天界面
+                        const p2pChatSection = document.getElementById('p2p-chat-section');
+                        if (p2pChatSection) {
+                            addP2PMessage('系统', `解密失败: ${decryptData.error}`, false);
+                            // 显示原始加密消息
+                            addP2PMessage(data.from, `🔒 [加密消息]`, false);
+                        } else {
+                            addSystemMessage(`收到来自 ${data.from} 的加密消息，但解密失败: ${decryptData.error}`);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('解密API调用失败:', error);
+                    
+                    // 检查是否在P2P聊天界面
+                    const p2pChatSection = document.getElementById('p2p-chat-section');
+                    if (p2pChatSection) {
+                        addP2PMessage('系统', `解密API错误: ${error.message}`, false);
+                        // 显示原始加密消息
+                        addP2PMessage(data.from, `🔒 [加密消息]`, false);
+                    } else {
+                        addSystemMessage(`收到来自 ${data.from} 的加密消息，但解密API错误: ${error.message}`);
+                    }
+                });
+            }
+            
+        // 监听P2P连接请求
+        socket.on('p2p_connection_request', (data) => {
+            console.log('🎯 收到P2P连接请求:', data);
+            const fromUser = data.from;
+            
+            // 检查是否已经有P2P聊天界面
+            const existingP2PChat = document.getElementById('p2p-chat-section');
+            if (existingP2PChat) {
+                // 如果已经在P2P聊天中，自动拒绝新的连接请求
+                console.log('⚠️ 已在P2P聊天中，自动拒绝新的连接请求');
+                socket.emit('p2p_accept', {
+                    from: fromUser,
+                    accepted: false
+                });
+                
+                addSystemMessage(`已在P2P聊天中，自动拒绝 ${fromUser} 的连接请求`);
+                return;
+            }
+            
+            // 检查是否已经有确认对话框
+            const existingDialog = document.querySelector('.confirm-dialog');
+            if (existingDialog) {
+                console.log('⚠️ 已有确认对话框，自动拒绝新的连接请求');
+                socket.emit('p2p_accept', {
+                    from: fromUser,
+                    accepted: false
+                });
+                
+                addSystemMessage(`已有待处理的连接请求，自动拒绝 ${fromUser} 的连接请求`);
+                return;
+            }
+            
+            // 添加调试日志
+            addSystemMessage(`收到来自 ${fromUser} 的P2P连接请求`);
+            
+            // 创建Aurora风格确认对话框
+            const confirmDialog = document.createElement('div');
+            confirmDialog.className = 'confirm-dialog fade-in';
+            
+            confirmDialog.innerHTML = `
+                <div class="text-center mb-4">
+                    <div class="w-12 h-12 chat-gradient rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-link text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">P2P连接请求</h3>
+                    <p class="text-slate-400 text-sm">用户 <span class="text-blue-400 font-semibold">${fromUser}</span> 请求与您建立P2P连接。</p>
+                </div>
+                <div class="flex justify-center space-x-3">
+                    <button id="confirm-reject" class="glass px-5 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                        <i class="fas fa-times mr-2"></i>拒绝
+                    </button>
+                    <button id="confirm-accept" class="chat-gradient px-5 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                        <i class="fas fa-check mr-2"></i>接受
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(confirmDialog);
+            
+            // 添加事件监听器
+            document.getElementById('confirm-accept').addEventListener('click', function() {
+                console.log('✅ 用户点击了接受');
+                socket.emit('p2p_accept', {
+                    from: fromUser,
+                    accepted: true
+                });
+                
+                addSystemMessage(`已接受 ${fromUser} 的P2P连接请求`);
+                document.body.removeChild(confirmDialog);
+            });
+            
+            document.getElementById('confirm-reject').addEventListener('click', function() {
+                console.log('❌ 用户点击了拒绝');
+                socket.emit('p2p_accept', {
+                    from: fromUser,
+                    accepted: false
+                });
+                
+                addSystemMessage(`已拒绝 ${fromUser} 的P2P连接请求`);
+                document.body.removeChild(confirmDialog);
+            });
+            
+            // 添加ESC键关闭功能
+            const handleEscKey = (e) => {
+                if (e.key === 'Escape') {
+                    console.log('❌ 用户按了ESC键，拒绝连接');
+                    socket.emit('p2p_accept', {
+                        from: fromUser,
+                        accepted: false
+                    });
+                    
+                    addSystemMessage(`已拒绝 ${fromUser} 的P2P连接请求`);
+                    document.body.removeChild(confirmDialog);
+                    document.removeEventListener('keydown', handleEscKey);
+                }
+            };
+            
+            document.addEventListener('keydown', handleEscKey);
+            
+            // 对话框关闭时移除事件监听器
+            const originalRemoveChild = document.body.removeChild.bind(document.body);
+            const wrappedRemoveChild = (child) => {
+                if (child === confirmDialog) {
+                    document.removeEventListener('keydown', handleEscKey);
+                }
+                return originalRemoveChild(child);
+            };
+            document.body.removeChild = wrappedRemoveChild;
+        });
+            
+            // 监听P2P连接断开通知
+            socket.on('p2p_connection_disconnected', (data) => {
+                console.log('收到P2P连接断开通知:', data);
+                const fromUser = data.from;
+                const message = data.message;
+                
+                addSystemMessage(message);
+                
+                // 如果当前在P2P聊天界面，自动返回到公共聊天
+                const p2pChatSection = document.getElementById('p2p-chat-section');
+                if (p2pChatSection) {
+                    // 检查是否是与断开连接的用户聊天
+                    // 从标题中提取当前聊天的目标用户
+                    const headerElement = p2pChatSection.querySelector('h3.font-bold');
+                    if (headerElement) {
+                        const match = headerElement.textContent.match(/与 (.+?) 建立/);
+                        let targetUser = '';
+                        if (match && match[1]) {
+                            targetUser = match[1];
+                        } else {
+                            // 如果正则匹配失败，尝试其他方式
+                            const text = headerElement.textContent;
+                            const parts = text.split(' - 与 ');
+                            if (parts.length > 1) {
+                                targetUser = parts[1].trim();
+                            }
+                        }
+                        
+                        console.log(`断开连接检查: 当前聊天目标用户=${targetUser}, 断开连接用户=${fromUser}`);
+                        
+                        if (targetUser === fromUser) {
+                            p2pChatSection.remove();
+                            document.getElementById('chat-section').classList.remove('hidden');
+                            document.getElementById('chat-section').classList.add('flex');
+                            document.getElementById('connection-status').innerHTML = `<i class="fas fa-plug mr-1"></i>未连接`;
+                            document.getElementById('connection-status').className = 'text-xs text-slate-400 mt-2';
+                            addSystemMessage(`对方 ${fromUser} 已断开P2P连接，已返回公共聊天室`);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 注册用户到服务器
+        function registerUser(username) {
+            if (!socket || !socket.connected) {
+                console.error('无法注册用户: Socket.IO未连接');
+                return false;
+            }
+            
+            socket.emit('register', {
+                username: username,
+                publicKey: 'auto-generated-key',
+                p2p_ip: window.location.hostname, // ✅ 动态获取当前域名/IP
+                p2p_port: window.location.port || (window.location.protocol === 'https:' ? 443 : 80)
+            });
+            
+            // 获取在线用户列表
+            setTimeout(() => {
+                socket.emit('get_online_users', {});
+            }, 1000);
+            
+            return true;
+        }
+        
+        // 发送消息到服务器
+        function sendMessageToServer(content) {
+            if (!socket || !socket.connected) {
+                console.error('无法发送消息: Socket.IO未连接');
+                return false;
+            }
+            
+            socket.emit('message', {
+                content: content,
+                timestamp: new Date().toISOString()
+            });
+            
+            return true;
+        }
+        
+        // 处理用户上线
+        function handleUserOnline(data) {
+            const { username } = data;
+            addSystemMessage(`用户 ${username} 已上线`);
+            
+            // 更新在线用户计数
+            updateOnlineUsersCount();
+        }
+        
+        // 更新在线用户计数
+        function updateOnlineUsersCount() {
+            document.getElementById('online-count').textContent = onlineUsers.length;
+        }
+        
+        // 更新状态显示
+        function updateStatus() {
+            // 更新时间显示
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            // 可以在这里添加其他状态更新
+        }
+        
+        // 登录功能
+        document.getElementById('login-btn').addEventListener('click', function() {
+            const username = document.getElementById('username').value.trim();
+            const errorElement = document.getElementById('login-error');
+            const successElement = document.getElementById('login-success');
+            
+            // 清除之前的消息
+            errorElement.classList.add('hidden');
+            successElement.classList.add('hidden');
+            
+            if (!username) {
+                errorElement.textContent = '请输入用户名';
+                errorElement.classList.remove('hidden');
+                return;
+            }
+            
+            if (username.length < 2) {
+                errorElement.textContent = '用户名至少需要2个字符';
+                errorElement.classList.remove('hidden');
+                return;
+            }
+            
+            // 检查Socket.IO连接
+            if (!socket || !socket.connected) {
+                errorElement.textContent = '正在连接服务器，请稍候...';
+                errorElement.classList.remove('hidden');
+                
+                // 尝试重新连接
+                connectSocketIO();
+                
+                // 等待连接建立
+                const checkConnection = setInterval(() => {
+                    if (socket && socket.connected) {
+                        clearInterval(checkConnection);
+                        completeLogin(username, successElement);
+                    }
+                }, 100);
+                
+                // 5秒超时
+                setTimeout(() => {
+                    clearInterval(checkConnection);
+                    if (!socket || !socket.connected) {
+                        errorElement.textContent = '连接服务器超时，请刷新页面重试';
+                        errorElement.classList.remove('hidden');
+                    }
+                }, 5000);
+            } else {
+                completeLogin(username, successElement);
+            }
+        });
+        
+        function completeLogin(username, successElement) {
+            currentUser = username;
+            
+            // 注册用户到服务器
+            const registered = registerUser(username);
+            if (!registered) {
+                document.getElementById('login-error').textContent = '注册失败，请重试';
+                document.getElementById('login-error').classList.remove('hidden');
+                return;
+            }
+            
+            // 显示成功消息
+            successElement.textContent = `欢迎 ${username}！正在进入聊天室...`;
+            successElement.classList.remove('hidden');
+            
+            // 禁用登录按钮，防止重复点击
+            document.getElementById('login-btn').disabled = true;
+            
+            // 等待注册成功事件
+            const registrationTimeout = setTimeout(() => {
+                // 如果3秒内没有收到注册成功事件，认为注册失败
+                document.getElementById('login-error').textContent = '注册超时，请重试';
+                document.getElementById('login-error').classList.remove('hidden');
+                successElement.classList.add('hidden');
+                document.getElementById('login-btn').disabled = false;
+                currentUser = null;
+            }, 3000);
+            
+            // 监听注册成功事件
+            const handleRegistered = (data) => {
+                if (data.username === username) {
+                    clearTimeout(registrationTimeout);
+                    socket.off('registered', handleRegistered);
+                    
+                    // 延迟切换到聊天界面
+                    setTimeout(() => {
+                        document.getElementById('login-section').classList.add('hidden');
+                        document.getElementById('chat-section').classList.remove('hidden');
+                        document.getElementById('chat-section').classList.add('flex');
+                        document.getElementById('current-user').textContent = username;
+                        document.getElementById('message-input').disabled = false;
+                        document.getElementById('send-btn').disabled = false;
+                        
+                        // 添加欢迎消息
+                        addSystemMessage(`欢迎 ${username} 加入聊天！`);
+                        addSystemMessage('系统已连接到WebSocket服务器，可以开始真正的用户间通信。');
+                        addSystemMessage('提示：打开另一个浏览器标签页，用不同用户名登录，测试真正的用户间聊天。');
+                    }, 500);
+                }
+            };
+            
+            socket.on('registered', handleRegistered);
+        }
+        
+        // 发送消息
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message || !currentUser) return;
+            
+            // 发送消息到服务器
+            const sent = sendMessageToServer(message);
+            if (sent) {
+                // 添加自己的消息
+                addMessage(currentUser, message, true);
+            } else {
+                addSystemMessage('发送失败，请检查连接');
+            }
+            
+            // 清空输入框
+            input.value = '';
+            input.focus();
+        }
+        
+        // 添加消息到聊天窗口
+        function addMessage(sender, content, isOwn = false) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageElement = document.createElement('div');
+            messageElement.className = `message-bubble ${isOwn ? 'own' : 'other'} fade-in`;
+            
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            messageElement.innerHTML = `
+                <div class="text-xs opacity-75 mb-1">${sender} · ${timeString}</div>
+                <div>${content}</div>
+            `;
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // 添加系统消息
+        function addSystemMessage(content) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message-bubble system fade-in';
+            
+            messageElement.innerHTML = `
+                <div class="flex items-center justify-center">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <span>${content}</span>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // 退出登录
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            // 创建确认对话框
+            const confirmDialog = document.createElement('div');
+            confirmDialog.className = 'confirm-dialog fade-in';
+            
+            confirmDialog.innerHTML = `
+                <div class="text-center mb-4">
+                    <div class="w-12 h-12 danger-gradient rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-sign-out-alt text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">确认退出</h3>
+                    <p class="text-slate-400 text-sm">确定要退出登录吗？</p>
+                </div>
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-logout" class="glass px-5 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                        取消
+                    </button>
+                    <button id="confirm-logout" class="danger-gradient px-5 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                        确认退出
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(confirmDialog);
+            
+            document.getElementById('cancel-logout').addEventListener('click', function() {
+                document.body.removeChild(confirmDialog);
+            });
+            
+            document.getElementById('confirm-logout').addEventListener('click', function() {
+                currentUser = null;
+                document.getElementById('chat-section').classList.add('hidden');
+                document.getElementById('chat-section').classList.remove('flex');
+                document.getElementById('login-section').classList.remove('hidden');
+                document.getElementById('username').value = '';
+                document.getElementById('message-input').value = '';
+                document.getElementById('message-input').disabled = true;
+                document.getElementById('send-btn').disabled = true;
+                document.getElementById('login-btn').disabled = false;
+                
+                // 清空聊天记录（保留第一条系统消息）
+                const messagesContainer = document.getElementById('chat-messages');
+                while (messagesContainer.children.length > 1) {
+                    messagesContainer.removeChild(messagesContainer.lastChild);
+                }
+                
+                addSystemMessage('您已退出登录。');
+                document.body.removeChild(confirmDialog);
+            });
+        });
+        
+        // 刷新用户列表
+        document.getElementById('refresh-users-btn').addEventListener('click', function() {
+            if (socket && socket.connected) {
+                socket.emit('get_online_users', {});
+                addSystemMessage('正在刷新在线用户列表...');
+            } else {
+                addSystemMessage('未连接到服务器，无法刷新用户列表');
+            }
+        });
+        
+        // 建立P2P连接
+        document.getElementById('connect-btn').addEventListener('click', function() {
+            const targetUsername = document.getElementById('connect-username').value.trim();
+            if (!targetUsername) {
+                addSystemMessage('请输入要连接的用户名');
+                return;
+            }
+            
+            if (targetUsername === currentUser) {
+                addSystemMessage('不能连接自己');
+                return;
+            }
+            
+            if (socket && socket.connected) {
+                socket.emit('p2p_connect', {
+                    username: targetUsername,
+                    suggested_port: 0
+                });
+                
+                document.getElementById('connection-status').innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>正在连接 ${targetUsername}...`;
+                document.getElementById('connection-status').className = 'text-xs text-blue-400 mt-2';
+                
+                addSystemMessage(`正在尝试与 ${targetUsername} 建立P2P连接...`);
+            } else {
+                addSystemMessage('未连接到服务器，无法建立P2P连接');
+            }
+        });
+        
+        // 更新在线用户列表显示
+        function updateOnlineUsersList() {
+            const usersList = document.getElementById('online-users-list');
+            usersList.innerHTML = '';
+            
+            if (onlineUsers.length === 0) {
+                usersList.innerHTML = `
+                    <div class="text-center text-slate-500 py-8">
+                        <i class="fas fa-users text-2xl mb-2"></i>
+                        <p>暂无在线用户</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            onlineUsers.forEach(user => {
+                if (user.username === currentUser) return; // 不显示自己
+                
+                const userElement = document.createElement('div');
+                userElement.className = 'flex items-center p-3 mb-2 rounded-2xl bg-slate-800/40 border border-slate-700/50 hover:border-blue-500/30 cursor-pointer transition fade-in';
+                
+                userElement.innerHTML = `
+                    <div class="relative">
+                        <div class="w-10 h-10 chat-gradient rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-sm"></i>
+                        </div>
+                        <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-slate-900 rounded-full"></span>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-sm">${user.username}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 truncate">${user.ip || '未知IP'}${user.port ? ':' + user.port : ''}</p>
+                    </div>
+                `;
+                
+                userElement.addEventListener('click', () => {
+                    document.getElementById('connect-username').value = user.username;
+                    addSystemMessage(`已选择用户 ${user.username}，点击"建立P2P连接"按钮开始连接`);
+                });
+                
+                usersList.appendChild(userElement);
+            });
+        }
+        
+        // 切换到P2P聊天界面
+        function switchToP2PChat(targetUser) {
+            console.log(`切换到P2P聊天界面，目标用户: ${targetUser}`);
+            
+            // 隐藏公共聊天界面
+            document.getElementById('chat-section').classList.add('hidden');
+            document.getElementById('chat-section').classList.remove('flex');
+            
+            // 创建P2P聊天界面
+            createP2PChatInterface(targetUser);
+        }
+        
+        // 创建P2P聊天界面
+        function createP2PChatInterface(targetUser) {
+            // 创建P2P聊天容器
+            const p2pChatContainer = document.createElement('div');
+            p2pChatContainer.id = 'p2p-chat-section';
+            p2pChatContainer.className = 'flex-1 flex flex-col';
+            
+            p2pChatContainer.innerHTML = `
+                <!-- 顶部状态栏 -->
+                <header class="h-20 glass flex items-center justify-between px-8 border-b border-slate-700/50">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 chat-gradient rounded-full flex items-center justify-center">
+                            <i class="fas fa-user-friends text-sm"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="font-bold text-sm">P2P加密聊天 - 与 ${targetUser}</h3>
+                            <div class="flex items-center">
+                                <span class="online-dot"></span>
+                                <span class="text-xs text-green-500">加密连接已建立</span>
+                                <span class="text-xs text-slate-500 ml-2">用户: <span id="p2p-current-user">${currentUser}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button id="back-to-public-btn" class="glass px-4 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                            <i class="fas fa-arrow-left mr-2"></i>返回公共聊天
+                        </button>
+                        <button id="p2p-disconnect-btn" class="danger-gradient px-4 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                            <i class="fas fa-unlink mr-2"></i>断开连接
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- P2P聊天区域 -->
+                    <main class="flex-1 flex flex-col">
+                        <!-- 聊天消息区域 -->
+                        <section class="flex-1 overflow-y-auto p-6 space-y-4" id="p2p-chat-messages">
+                            <div class="message-bubble system fade-in">
+                                <div class="flex items-center justify-center">
+                                    <i class="fas fa-shield-alt mr-2"></i>
+                                    <span>已与 ${targetUser} 建立P2P加密连接，开始私密聊天！</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 消息输入区域 -->
+                        <footer class="p-6 border-t border-slate-700/50">
+                            <div class="glass max-w-4xl mx-auto rounded-2xl flex items-center px-4 py-2 shadow-2xl">
+                                <button class="p-2 text-slate-400 hover:text-white transition">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <input type="text" id="p2p-message-input" placeholder="输入私密消息..." 
+                                       class="flex-1 bg-transparent border-none focus:outline-none px-4 text-sm py-3 text-white placeholder-slate-500">
+                                <button class="p-2 text-slate-400 hover:text-white mx-2 transition">
+                                    <i class="far fa-smile"></i>
+                                </button>
+                                <button id="p2p-send-btn" 
+                                        class="chat-gradient w-10 h-10 rounded-xl flex items-center justify-center shadow-lg hover:scale-105 transition">
+                                    <i class="fas fa-paper-plane text-xs"></i>
+                                </button>
+                            </div>
+                        </footer>
+                    </main>
+                </div>
+            `;
+            
+            // 添加到页面
+            document.querySelector('body').appendChild(p2pChatContainer);
+            
+            // 添加事件监听器
+            document.getElementById('back-to-public-btn').addEventListener('click', function() {
+                document.getElementById('p2p-chat-section').remove();
+                document.getElementById('chat-section').classList.remove('hidden');
+                document.getElementById('chat-section').classList.add('flex');
+                addSystemMessage(`已返回公共聊天室，与 ${targetUser} 的P2P连接仍然保持。`);
+            });
+            
+            document.getElementById('p2p-disconnect-btn').addEventListener('click', function() {
+                // 创建确认对话框
+                const confirmDialog = document.createElement('div');
+                confirmDialog.className = 'confirm-dialog fade-in';
+                
+                confirmDialog.innerHTML = `
+                    <div class="text-center mb-4">
+                        <div class="w-12 h-12 danger-gradient rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-unlink text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold mb-2">断开P2P连接</h3>
+                        <p class="text-slate-400 text-sm">确定要断开与 <span class="text-blue-400">${targetUser}</span> 的P2P连接吗？</p>
+                    </div>
+                    <div class="flex justify-center space-x-3">
+                        <button id="cancel-disconnect" class="glass px-5 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                            取消
+                        </button>
+                        <button id="confirm-disconnect" class="danger-gradient px-5 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                            确认断开
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(confirmDialog);
+                
+                document.getElementById('cancel-disconnect').addEventListener('click', function() {
+                    document.body.removeChild(confirmDialog);
+                });
+                
+                document.getElementById('confirm-disconnect').addEventListener('click', function() {
+                    // 发送断开连接通知给服务器
+                    if (socket && socket.connected) {
+                        socket.emit('p2p_disconnect', {
+                            target: targetUser
+                        });
+                    }
+                    
+                    document.getElementById('p2p-chat-section').remove();
+                    document.getElementById('chat-section').classList.remove('hidden');
+                    document.getElementById('chat-section').classList.add('flex');
+                    document.getElementById('connection-status').innerHTML = `<i class="fas fa-plug mr-1"></i>未连接`;
+                    document.getElementById('connection-status').className = 'text-xs text-slate-400 mt-2';
+                    addSystemMessage(`已断开与 ${targetUser} 的P2P连接`);
+                    document.body.removeChild(confirmDialog);
+                });
+            });
+            
+            document.getElementById('p2p-send-btn').addEventListener('click', sendP2PMessage);
+            document.getElementById('p2p-message-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendP2PMessage();
+                }
+            });
+            
+            // 初始化P2P消息输入框
+            document.getElementById('p2p-message-input').focus();
+        }
+        
+        // 发送P2P消息
+        function sendP2PMessage() {
+            const input = document.getElementById('p2p-message-input');
+            const message = input.value.trim();
+            
+            if (!message || !currentUser) return;
+            
+            // 获取目标用户 - 从标题中提取
+            const headerElement = document.querySelector('#p2p-chat-section h3.font-bold');
+            let targetUser = '';
+            if (headerElement) {
+                const match = headerElement.textContent.match(/与 (.+?) 建立/);
+                if (match && match[1]) {
+                    targetUser = match[1];
+                } else {
+                    // 如果正则匹配失败，尝试其他方式
+                    const text = headerElement.textContent;
+                    const parts = text.split(' - 与 ');
+                    if (parts.length > 1) {
+                        targetUser = parts[1].trim();
+                    }
+                }
+            }
+            
+            if (!targetUser) {
+                addP2PMessage('系统', '无法确定聊天对象，请重新连接', false);
+                return;
+            }
+            
+            console.log(`发送P2P消息: 当前用户=${currentUser}, 目标用户=${targetUser}, 消息=${message}`);
+            
+            // 发送P2P聊天消息
+            if (socket && socket.connected) {
+                const sessionId = `p2p_${currentUser}_${targetUser}`;
+                
+                // 加密消息
+                encryptAndSendMessage(message, sessionId, targetUser);
+            } else {
+                addP2PMessage('系统', '发送失败，请检查连接', false);
+            }
+            
+            // 清空输入框
+            input.value = '';
+            input.focus();
+        }
+        
+        // 加密并发送消息
+        function encryptAndSendMessage(message, sessionId, targetUser) {
+            console.log(`开始加密消息: ${message}`);
+            
+            // 调用后端API加密消息
+            fetch('/api/p2p/chat/encrypt', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('消息加密成功:', data);
+                    
+                    // 发送加密消息
+                    socket.emit('p2p_chat_message', {
+                        session_id: sessionId,
+                        content: '[加密消息]',
+                        encrypted: true,
+                        encrypted_content: data.encrypted_content,
+                        session_key: data.session_key,
+                        ephemeral: false
+                    });
+                    
+                    console.log(`已发送加密P2P消息: session_id=${sessionId}`);
+                    
+                    // 添加自己的消息（显示为已加密）
+                    addP2PMessage(currentUser, `🔒 ${message}`, true);
+                    addSystemMessage('消息已加密发送');
+                } else {
+                    console.error('消息加密失败:', data.error);
+                    addP2PMessage('系统', `加密失败: ${data.error}`, false);
+                    
+                    // 如果加密失败，发送明文消息
+                    socket.emit('p2p_chat_message', {
+                        session_id: sessionId,
+                        content: message,
+                        ephemeral: false
+                    });
+                    
+                    addP2PMessage(currentUser, message, true);
+                }
+            })
+            .catch(error => {
+                console.error('加密API调用失败:', error);
+                addP2PMessage('系统', `加密API错误: ${error.message}`, false);
+                
+                // 如果API调用失败，发送明文消息
+                socket.emit('p2p_chat_message', {
+                    session_id: sessionId,
+                    content: message,
+                    ephemeral: false
+                });
+                
+                addP2PMessage(currentUser, message, true);
+            });
+        }
+        
+        // 添加P2P消息到聊天窗口
+        function addP2PMessage(sender, content, isOwn = false) {
+            const messagesContainer = document.getElementById('p2p-chat-messages');
+            if (!messagesContainer) return;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = `message-bubble ${isOwn ? 'own' : 'other'} fade-in`;
+            
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            messageElement.innerHTML = `
+                <div class="text-xs opacity-75 mb-1">${sender} · ${timeString}</div>
+                <div>${content}</div>
+            `;
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // 管理P2P会话
+        let activeP2PSessions = [];
+        
+        // 添加P2P会话
+        function addP2PSession(targetUser) {
+            // 检查是否已存在该会话
+            if (!activeP2PSessions.includes(targetUser)) {
+                activeP2PSessions.push(targetUser);
+                updateP2PSessionsList();
+            }
+        }
+        
+        // 移除P2P会话
+        function removeP2PSession(targetUser) {
+            activeP2PSessions = activeP2PSessions.filter(user => user !== targetUser);
+            updateP2PSessionsList();
+        }
+        
+        // 更新P2P会话列表显示
+        function updateP2PSessionsList() {
+            const sessionsSection = document.getElementById('p2p-sessions-section');
+            const sessionsList = document.getElementById('p2p-sessions-list');
+            
+            if (activeP2PSessions.length === 0) {
+                sessionsSection.classList.add('hidden');
+                return;
+            }
+            
+            sessionsSection.classList.remove('hidden');
+            sessionsList.innerHTML = '';
+            
+            activeP2PSessions.forEach(targetUser => {
+                const sessionElement = document.createElement('div');
+                sessionElement.className = 'flex items-center justify-between p-2 bg-slate-800/20 rounded-lg hover:bg-slate-800/40 transition fade-in';
+                
+                sessionElement.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-6 h-6 chat-gradient rounded-full flex items-center justify-center mr-2">
+                            <i class="fas fa-user-friends text-xs"></i>
+                        </div>
+                        <span class="text-xs font-medium">${targetUser}</span>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button class="p-1 text-blue-400 hover:text-blue-300 transition" title="重新进入聊天室">
+                            <i class="fas fa-sign-in-alt text-xs"></i>
+                        </button>
+                        <button class="p-1 text-red-400 hover:text-red-300 transition" title="断开连接">
+                            <i class="fas fa-unlink text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                
+                // 重新进入聊天室按钮
+                const reenterBtn = sessionElement.querySelector('button:nth-child(1)');
+                reenterBtn.addEventListener('click', function() {
+                    reenterP2PChat(targetUser);
+                });
+                
+                // 断开连接按钮
+                const disconnectBtn = sessionElement.querySelector('button:nth-child(2)');
+                disconnectBtn.addEventListener('click', function() {
+                    disconnectP2PSession(targetUser);
+                });
+                
+                sessionsList.appendChild(sessionElement);
+            });
+        }
+        
+        // 重新进入P2P聊天室
+        function reenterP2PChat(targetUser) {
+            console.log(`重新进入与 ${targetUser} 的P2P聊天室`);
+            
+            // 检查是否已经在P2P聊天界面
+            const existingP2PChat = document.getElementById('p2p-chat-section');
+            if (existingP2PChat) {
+                // 如果已经在P2P聊天中，先移除当前界面
+                existingP2PChat.remove();
+            }
+            
+            // 切换到P2P聊天界面
+            switchToP2PChat(targetUser);
+            addSystemMessage(`已重新进入与 ${targetUser} 的P2P聊天室`);
+        }
+        
+        // 断开P2P会话
+        function disconnectP2PSession(targetUser) {
+            // 创建确认对话框
+            const confirmDialog = document.createElement('div');
+            confirmDialog.className = 'confirm-dialog fade-in';
+            
+            confirmDialog.innerHTML = `
+                <div class="text-center mb-4">
+                    <div class="w-12 h-12 danger-gradient rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-unlink text-lg"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">断开P2P连接</h3>
+                    <p class="text-slate-400 text-sm">确定要断开与 <span class="text-blue-400">${targetUser}</span> 的P2P连接吗？</p>
+                </div>
+                <div class="flex justify-center space-x-3">
+                    <button id="cancel-disconnect-session" class="glass px-5 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                        取消
+                    </button>
+                    <button id="confirm-disconnect-session" class="danger-gradient px-5 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                        确认断开
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(confirmDialog);
+            
+            document.getElementById('cancel-disconnect-session').addEventListener('click', function() {
+                document.body.removeChild(confirmDialog);
+            });
+            
+            document.getElementById('confirm-disconnect-session').addEventListener('click', function() {
+                // 发送断开连接通知给服务器
+                if (socket && socket.connected) {
+                    socket.emit('p2p_disconnect', {
+                        target: targetUser
+                    });
+                }
+                
+                // 移除会话
+                removeP2PSession(targetUser);
+                
+                // 如果当前在P2P聊天界面，返回到公共聊天
+                const p2pChatSection = document.getElementById('p2p-chat-section');
+                if (p2pChatSection) {
+                    // 检查是否是与断开连接的用户聊天
+                    const headerElement = p2pChatSection.querySelector('h3.font-bold');
+                    if (headerElement) {
+                        const match = headerElement.textContent.match(/与 (.+?) 建立/);
+                        let currentTargetUser = '';
+                        if (match && match[1]) {
+                            currentTargetUser = match[1];
+                        }
+                        
+                        if (currentTargetUser === targetUser) {
+                            p2pChatSection.remove();
+                            document.getElementById('chat-section').classList.remove('hidden');
+                            document.getElementById('chat-section').classList.add('flex');
+                            document.getElementById('connection-status').innerHTML = `<i class="fas fa-plug mr-1"></i>未连接`;
+                            document.getElementById('connection-status').className = 'text-xs text-slate-400 mt-2';
+                        }
+                    }
+                }
+                
+                addSystemMessage(`已断开与 ${targetUser} 的P2P连接`);
+                document.body.removeChild(confirmDialog);
+            });
+        }
+        
+        // 修改switchToP2PChat函数，添加会话管理
+        const originalSwitchToP2PChat = switchToP2PChat;
+        switchToP2PChat = function(targetUser) {
+            console.log(`切换到P2P聊天界面，目标用户: ${targetUser}`);
+            
+            // 隐藏公共聊天界面
+            document.getElementById('chat-section').classList.add('hidden');
+            document.getElementById('chat-section').classList.remove('flex');
+            
+            // 创建P2P聊天界面
+            createP2PChatInterface(targetUser);
+            
+            // 添加到会话列表
+            addP2PSession(targetUser);
+        };
+        
+        // 修改createP2PChatInterface函数，更新返回按钮逻辑
+        const originalCreateP2PChatInterface = createP2PChatInterface;
+        createP2PChatInterface = function(targetUser) {
+            // 创建P2P聊天容器
+            const p2pChatContainer = document.createElement('div');
+            p2pChatContainer.id = 'p2p-chat-section';
+            p2pChatContainer.className = 'flex-1 flex flex-col';
+            
+            p2pChatContainer.innerHTML = `
+                <!-- 顶部状态栏 -->
+                <header class="h-20 glass flex items-center justify-between px-8 border-b border-slate-700/50">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 chat-gradient rounded-full flex items-center justify-center">
+                            <i class="fas fa-user-friends text-sm"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="font-bold text-sm">P2P加密聊天 - 与 ${targetUser}</h3>
+                            <div class="flex items-center">
+                                <span class="online-dot"></span>
+                                <span class="text-xs text-green-500">加密连接已建立</span>
+                                <span class="text-xs text-slate-500 ml-2">用户: <span id="p2p-current-user">${currentUser}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button id="back-to-public-btn" class="glass px-4 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                            <i class="fas fa-arrow-left mr-2"></i>返回公共聊天
+                        </button>
+                        <button id="p2p-disconnect-btn" class="danger-gradient px-4 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                            <i class="fas fa-unlink mr-2"></i>断开连接
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex-1 flex overflow-hidden">
+                    <!-- P2P聊天区域 -->
+                    <main class="flex-1 flex flex-col">
+                        <!-- 聊天消息区域 -->
+                        <section class="flex-1 overflow-y-auto p-6 space-y-4" id="p2p-chat-messages">
+                            <div class="message-bubble system fade-in">
+                                <div class="flex items-center justify-center">
+                                    <i class="fas fa-shield-alt mr-2"></i>
+                                    <span>已与 ${targetUser} 建立P2P加密连接，开始私密聊天！</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- 消息输入区域 -->
+                        <footer class="p-6 border-t border-slate-700/50">
+                            <div class="glass max-w-4xl mx-auto rounded-2xl flex items-center px-4 py-2 shadow-2xl">
+                                <button class="p-2 text-slate-400 hover:text-white transition">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <input type="text" id="p2p-message-input" placeholder="输入私密消息..." 
+                                       class="flex-1 bg-transparent border-none focus:outline-none px-4 text-sm py-3 text-white placeholder-slate-500">
+                                <button class="p-2 text-slate-400 hover:text-white mx-2 transition">
+                                    <i class="far fa-smile"></i>
+                                </button>
+                                <button id="p2p-send-btn" 
+                                        class="chat-gradient w-10 h-10 rounded-xl flex items-center justify-center shadow-lg hover:scale-105 transition">
+                                    <i class="fas fa-paper-plane text-xs"></i>
+                                </button>
+                            </div>
+                        </footer>
+                    </main>
+                </div>
+            `;
+            
+            // 添加到页面
+            document.querySelector('body').appendChild(p2pChatContainer);
+            
+            // 添加事件监听器
+            document.getElementById('back-to-public-btn').addEventListener('click', function() {
+                document.getElementById('p2p-chat-section').remove();
+                document.getElementById('chat-section').classList.remove('hidden');
+                document.getElementById('chat-section').classList.add('flex');
+                addSystemMessage(`已返回公共聊天室，与 ${targetUser} 的P2P连接仍然保持。`);
+            });
+            
+            document.getElementById('p2p-disconnect-btn').addEventListener('click', function() {
+                // 创建确认对话框
+                const confirmDialog = document.createElement('div');
+                confirmDialog.className = 'confirm-dialog fade-in';
+                
+                confirmDialog.innerHTML = `
+                    <div class="text-center mb-4">
+                        <div class="w-12 h-12 danger-gradient rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-unlink text-lg"></i>
+                        </div>
+                        <h3 class="text-lg font-bold mb-2">断开P2P连接</h3>
+                        <p class="text-slate-400 text-sm">确定要断开与 <span class="text-blue-400">${targetUser}</span> 的P2P连接吗？</p>
+                    </div>
+                    <div class="flex justify-center space-x-3">
+                        <button id="cancel-disconnect" class="glass px-5 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                            取消
+                        </button>
+                        <button id="confirm-disconnect" class="danger-gradient px-5 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                            确认断开
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(confirmDialog);
+                
+                document.getElementById('cancel-disconnect').addEventListener('click', function() {
+                    document.body.removeChild(confirmDialog);
+                });
+                
+                document.getElementById('confirm-disconnect').addEventListener('click', function() {
+                    // 发送断开连接通知给服务器
+                    if (socket && socket.connected) {
+                        socket.emit('p2p_disconnect', {
+                            target: targetUser
+                        });
+                    }
+                    
+                    // 移除会话
+                    removeP2PSession(targetUser);
+                    
+                    document.getElementById('p2p-chat-section').remove();
+                    document.getElementById('chat-section').classList.remove('hidden');
+                    document.getElementById('chat-section').classList.add('flex');
+                    document.getElementById('connection-status').innerHTML = `<i class="fas fa-plug mr-1"></i>未连接`;
+                    document.getElementById('connection-status').className = 'text-xs text-slate-400 mt-2';
+                    addSystemMessage(`已断开与 ${targetUser} 的P2P连接`);
+                    document.body.removeChild(confirmDialog);
+                });
+            });
+            
+            document.getElementById('p2p-send-btn').addEventListener('click', sendP2PMessage);
+            document.getElementById('p2p-message-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendP2PMessage();
+                }
+            });
+            
+            // 初始化P2P消息输入框
+            document.getElementById('p2p-message-input').focus();
+        };
+        
+        // 表情选择器功能
+        let emojiPickerVisible = false;
+        let fileUploadDialogVisible = false;
+        
+        // 初始化表情选择器
+        function initEmojiPicker() {
+            // 创建表情选择器
+            const emojiPicker = document.createElement('div');
+            emojiPicker.id = 'emoji-picker';
+            emojiPicker.className = 'emoji-picker';
+            
+            // 常用表情
+            const commonEmojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', 
+                                 '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+                                 '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+                                 '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+                                 '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
+                                 '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗',
+                                 '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯',
+                                 '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐',
+                                 '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈',
+                                 '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾',
+                                 '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿',
+                                 '😾'];
+            
+            // 按类别分组
+            const emojiCategories = [
+                {
+                    title: '笑脸与人物',
+                    emojis: commonEmojis.slice(0, 30)
+                },
+                {
+                    title: '手势与身体',
+                    emojis: ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '👆', '👇', '👉', '👈', '🙏', '🤝', '👏', '🙌']
+                },
+                {
+                    title: '动物与自然',
+                    emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵']
+                },
+                {
+                    title: '食物与饮料',
+                    emojis: ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝']
+                },
+                {
+                    title: '活动',
+                    emojis: ['⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑']
+                }
+            ];
+            
+            // 构建表情选择器内容
+            emojiPicker.innerHTML = `
+                <div class="emoji-picker-content">
+                    ${emojiCategories.map(category => `
+                        <div class="emoji-category">
+                            <div class="emoji-category-title">${category.title}</div>
+                            <div class="emoji-grid">
+                                ${category.emojis.map(emoji => `
+                                    <div class="emoji-item" data-emoji="${emoji}">${emoji}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            document.body.appendChild(emojiPicker);
+            
+            // 添加表情点击事件
+            emojiPicker.addEventListener('click', function(e) {
+                if (e.target.classList.contains('emoji-item')) {
+                    const emoji = e.target.getAttribute('data-emoji');
+                    insertEmoji(emoji);
+                    hideEmojiPicker();
+                }
+            });
+            
+            // 点击外部关闭表情选择器
+            document.addEventListener('click', function(e) {
+                if (emojiPickerVisible && !emojiPicker.contains(e.target) && 
+                    !e.target.closest('.emoji-btn') && !e.target.classList.contains('far')) {
+                    hideEmojiPicker();
+                }
+            });
+        }
+        
+        // 显示表情选择器
+        function showEmojiPicker() {
+            const emojiPicker = document.getElementById('emoji-picker');
+            if (!emojiPicker) return;
+            
+            emojiPicker.classList.add('show');
+            emojiPickerVisible = true;
+        }
+        
+        // 隐藏表情选择器
+        function hideEmojiPicker() {
+            const emojiPicker = document.getElementById('emoji-picker');
+            if (!emojiPicker) return;
+            
+            emojiPicker.classList.remove('show');
+            emojiPickerVisible = false;
+        }
+        
+        // 切换表情选择器
+        function toggleEmojiPicker() {
+            if (emojiPickerVisible) {
+                hideEmojiPicker();
+            } else {
+                showEmojiPicker();
+            }
+        }
+        
+        // 插入表情到输入框
+        function insertEmoji(emoji) {
+            const chatSection = document.getElementById('chat-section');
+            const p2pChatSection = document.getElementById('p2p-chat-section');
+            
+            if (p2pChatSection && !p2pChatSection.classList.contains('hidden')) {
+                // 在P2P聊天中
+                const input = document.getElementById('p2p-message-input');
+                if (input) {
+                    input.value += emoji;
+                    input.focus();
+                }
+            } else if (chatSection && !chatSection.classList.contains('hidden')) {
+                // 在公共聊天中
+                const input = document.getElementById('message-input');
+                if (input) {
+                    input.value += emoji;
+                    input.focus();
+                }
+            }
+        }
+        
+        // 文件上传功能
+        function initFileUpload() {
+            // 创建文件上传对话框
+            const fileUploadDialog = document.createElement('div');
+            fileUploadDialog.id = 'file-upload-dialog';
+            fileUploadDialog.className = 'file-upload-dialog';
+            fileUploadDialog.style.display = 'none';
+            
+            fileUploadDialog.innerHTML = `
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 chat-gradient rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-file-upload text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">发送文件</h3>
+                    <p class="text-slate-400 text-sm">选择要发送的文件（最大10MB）</p>
+                </div>
+                
+                <div class="file-drop-area" id="file-drop-area">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-slate-400 mb-3"></i>
+                    <p class="text-slate-300 font-medium mb-1">拖放文件到这里</p>
+                    <p class="text-slate-500 text-sm">或点击选择文件</p>
+                    <input type="file" id="file-input" class="hidden" multiple>
+                </div>
+                
+                <div class="file-preview" id="file-preview">
+                    <div class="file-info">
+                        <div class="file-icon">
+                            <i class="fas fa-file"></i>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name" id="file-name">未选择文件</div>
+                            <div class="file-size" id="file-size">-</div>
+                        </div>
+                        <div class="file-remove" id="file-remove">
+                            <i class="fas fa-times"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center space-x-3 mt-6">
+                    <button id="cancel-upload" class="glass px-5 py-2 rounded-xl text-sm hover:bg-slate-800/50 transition">
+                        取消
+                    </button>
+                    <button id="send-file-btn" class="chat-gradient px-5 py-2 rounded-xl text-sm hover:opacity-90 transition">
+                        发送文件
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(fileUploadDialog);
+            
+            // 文件上传相关变量
+            let selectedFile = null;
+            
+            // 文件拖放功能
+            const fileDropArea = document.getElementById('file-drop-area');
+            const fileInput = document.getElementById('file-input');
+            const filePreview = document.getElementById('file-preview');
+            const fileName = document.getElementById('file-name');
+            const fileSize = document.getElementById('file-size');
+            const fileRemove = document.getElementById('file-remove');
+            
+            // 点击文件区域触发文件选择
+            fileDropArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // 文件选择变化
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖放事件
+            fileDropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileDropArea.classList.add('dragover');
+            });
+            
+            fileDropArea.addEventListener('dragleave', () => {
+                fileDropArea.classList.remove('dragover');
+            });
+            
+            fileDropArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileDropArea.classList.remove('dragover');
+                
+                if (e.dataTransfer.files.length) {
+                    handleFileSelect({ target: { files: e.dataTransfer.files } });
+                }
+            });
+            
+            // 移除文件
+            fileRemove.addEventListener('click', () => {
+                selectedFile = null;
+                fileInput.value = '';
+                filePreview.classList.remove('show');
+                fileName.textContent = '未选择文件';
+                fileSize.textContent = '-';
+            });
+            
+            // 取消上传
+            document.getElementById('cancel-upload').addEventListener('click', hideFileUploadDialog);
+            
+            // 发送文件
+            document.getElementById('send-file-btn').addEventListener('click', sendSelectedFile);
+            
+            // 点击外部关闭对话框
+            document.addEventListener('click', function(e) {
+                if (fileUploadDialogVisible && !fileUploadDialog.contains(e.target) && 
+                    !e.target.closest('.file-upload-btn') && !e.target.classList.contains('fa-paperclip')) {
+                    hideFileUploadDialog();
+                }
+            });
+        }
+        
+        // 处理文件选择
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (!files.length) return;
+            
+            // 只处理第一个文件（可以扩展为多文件）
+            const file = files[0];
+            
+            // 检查文件大小（10MB限制）
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            if (file.size > maxSize) {
+                addSystemMessage('文件太大，请选择小于10MB的文件');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // 显示文件信息
+            const fileNameElement = document.getElementById('file-name');
+            const fileSizeElement = document.getElementById('file-size');
+            const filePreview = document.getElementById('file-preview');
+            
+            fileNameElement.textContent = file.name;
+            fileSizeElement.textContent = formatFileSize(file.size);
+            filePreview.classList.add('show');
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 显示文件上传对话框
+        function showFileUploadDialog() {
+            const fileUploadDialog = document.getElementById('file-upload-dialog');
+            if (!fileUploadDialog) return;
+            
+            fileUploadDialog.style.display = 'block';
+            fileUploadDialogVisible = true;
+            
+            // 重置文件选择
+            selectedFile = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('file-preview').classList.remove('show');
+            document.getElementById('file-name').textContent = '未选择文件';
+            document.getElementById('file-size').textContent = '-';
+        }
+        
+        // 隐藏文件上传对话框
+        function hideFileUploadDialog() {
+            const fileUploadDialog = document.getElementById('file-upload-dialog');
+            if (!fileUploadDialog) return;
+            
+            fileUploadDialog.style.display = 'none';
+            fileUploadDialogVisible = false;
+        }
+        
+        // 发送选中的文件
+        function sendSelectedFile() {
+            if (!selectedFile) {
+                addSystemMessage('请先选择文件');
+                return;
+            }
+            
+            if (!socket || !socket.connected) {
+                addSystemMessage('未连接到服务器，无法发送文件');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const fileData = e.target.result;
+                const base64Data = fileData.split(',')[1] || fileData;
+                
+                // 获取当前聊天环境
+                const chatSection = document.getElementById('chat-section');
+                const p2pChatSection = document.getElementById('p2p-chat-section');
+                let target = null;
+                let sessionId = null;
+                
+                if (p2pChatSection && !p2pChatSection.classList.contains('hidden')) {
+                    // 在P2P聊天中
+                    const headerElement = p2pChatSection.querySelector('h3.font-bold');
+                    if (headerElement) {
+                        // 标题格式: "P2P加密聊天 - 与 用户名"
+                        const text = headerElement.textContent;
+                        const parts = text.split(' - 与 ');
+                        if (parts.length > 1) {
+                            target = parts[1].trim();
+                            sessionId = `p2p_${currentUser}_${target}`;
+                        } else {
+                            // 尝试其他格式
+                            const match = text.match(/与 (.+?)$/);
+                            if (match && match[1]) {
+                                target = match[1].trim();
+                                sessionId = `p2p_${currentUser}_${target}`;
+                            }
+                        }
+                    }
+                }
+                
+                // 发送文件
+                socket.emit('send_file', {
+                    target: target,
+                    file_data: base64Data,
+                    file_name: selectedFile.name,
+                    file_size: selectedFile.size,
+                    file_type: selectedFile.type,
+                    session_id: sessionId
+                });
+                
+                addSystemMessage(`正在发送文件: ${selectedFile.name}`);
+                hideFileUploadDialog();
+            };
+            
+            reader.onerror = function() {
+                addSystemMessage('文件读取失败');
+            };
+            
+            // 读取文件为Data URL
+            reader.readAsDataURL(selectedFile);
+        }
+        
+        // 添加文件消息显示
+        function addFileMessage(sender, fileInfo, isOwn = false) {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (!messagesContainer) return;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = `message-bubble ${isOwn ? 'own' : 'other'} fade-in`;
+            
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            // 根据文件类型选择图标
+            let fileIcon = 'fa-file';
+            if (fileInfo.file_type && fileInfo.file_type.startsWith('image/')) {
+                fileIcon = 'fa-image';
+            } else if (fileInfo.file_type && fileInfo.file_type.startsWith('audio/')) {
+                fileIcon = 'fa-file-audio';
+            } else if (fileInfo.file_type && fileInfo.file_type.startsWith('video/')) {
+                fileIcon = 'fa-file-video';
+            } else if (fileInfo.file_type && (fileInfo.file_type.includes('pdf') || fileInfo.file_type.includes('document'))) {
+                fileIcon = 'fa-file-pdf';
+            }
+            
+            messageElement.innerHTML = `
+                <div class="text-xs opacity-75 mb-1">${sender} · ${timeString}</div>
+                <div class="file-message">
+                    <div class="file-icon">
+                        <i class="fas ${fileIcon}"></i>
+                    </div>
+                    <div class="file-details">
+                        <div class="file-name">${fileInfo.file_name}</div>
+                        <div class="file-size">${formatFileSize(fileInfo.file_size)}</div>
+                    </div>
+                    <button class="file-download-btn" onclick="downloadFile('${fileInfo.file_data}', '${fileInfo.file_name}')">
+                        下载
+                    </button>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // 下载文件
+        function downloadFile(base64Data, fileName) {
+            try {
+                const link = document.createElement('a');
+                link.href = `data:application/octet-stream;base64,${base64Data}`;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                addSystemMessage(`文件 ${fileName} 下载中...`);
+            } catch (error) {
+                console.error('文件下载失败:', error);
+                addSystemMessage('文件下载失败: ' + error.message);
+            }
+        }
+        
+        // 监听表情和文件上传事件
+        function initEmojiAndFileEvents() {
+            // 公共聊天表情按钮
+            const publicEmojiBtn = document.querySelector('#chat-section .fa-smile');
+            if (publicEmojiBtn) {
+                publicEmojiBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleEmojiPicker();
+                });
+            }
+            
+            // 公共聊天文件上传按钮
+            const publicFileBtn = document.querySelector('#chat-section .fa-paperclip');
+            if (publicFileBtn) {
+                publicFileBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    showFileUploadDialog();
+                });
+            }
+            
+            // P2P聊天表情按钮
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('fa-smile') || e.target.closest('.fa-smile')) {
+                    e.stopPropagation();
+                    toggleEmojiPicker();
+                }
+                
+                if (e.target.classList.contains('fa-paperclip') || e.target.closest('.fa-paperclip')) {
+                    e.stopPropagation();
+                    showFileUploadDialog();
+                }
+            });
+            
+            // 监听文件接收事件
+            socket.on('file_received', function(data) {
+                console.log('收到文件:', data);
+                addFileMessage(data.sender, data, data.sender === currentUser);
+                addSystemMessage(`收到来自 ${data.sender} 的文件: ${data.file_name}`);
+            });
+            
+            // 监听P2P文件接收事件
+            socket.on('p2p_file_received', function(data) {
+                console.log('收到P2P文件:', data);
+                
+                // 检查是否加密文件
+                if (data.encrypted && data.session_key) {
+                    console.log('收到加密文件，开始解密...');
+                    
+                    // 解密文件
+                    decryptAndDisplayFile(data);
+                } else {
+                    // 非加密文件，直接显示
+                    displayFileMessage(data);
+                }
+            });
+            
+            // 解密并显示文件
+            function decryptAndDisplayFile(data) {
+                console.log('解密文件:', data.file_name);
+                
+                // 调用解密API
+                fetch('/api/p2p/chat/decrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        encrypted_content: data.file_data,
+                        session_key: data.session_key
+                    })
+                })
+                .then(response => response.json())
+                .then(decryptData => {
+                    console.log('文件解密结果:', decryptData);
+                    
+                    if (decryptData.success) {
+                        // 解密成功，获取解密后的文件数据
+                        const decryptedFileData = decryptData.decrypted_content;
+                        
+                        // 更新数据对象，使用解密后的数据
+                        const decryptedData = {
+                            ...data,
+                            file_data: decryptedFileData,
+                            encrypted: false
+                        };
+                        
+                        // 显示解密后的文件
+                        displayFileMessage(decryptedData);
+                        addSystemMessage(`文件 ${data.file_name} 已解密`);
+                    } else {
+                        console.error('文件解密失败:', decryptData.error);
+                        
+                        // 显示加密文件（无法解密）
+                        const encryptedData = {
+                            ...data,
+                            file_name: `🔒 ${data.file_name} (加密)`,
+                            encrypted: true
+                        };
+                        
+                        displayFileMessage(encryptedData);
+                        addSystemMessage(`文件 ${data.file_name} 解密失败: ${decryptData.error}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('文件解密API调用失败:', error);
+                    
+                    // 显示加密文件（解密失败）
+                    const encryptedData = {
+                        ...data,
+                        file_name: `🔒 ${data.file_name} (加密)`,
+                        encrypted: true
+                    };
+                    
+                    displayFileMessage(encryptedData);
+                    addSystemMessage(`文件 ${data.file_name} 解密API错误: ${error.message}`);
+                });
+            }
+            
+            // 显示文件消息
+            function displayFileMessage(data) {
+                // 检查是否在P2P聊天界面
+                const p2pChatSection = document.getElementById('p2p-chat-section');
+                if (p2pChatSection) {
+                    // 在P2P聊天中显示文件消息
+                    const messagesContainer = document.getElementById('p2p-chat-messages');
+                    if (messagesContainer) {
+                        const messageElement = document.createElement('div');
+                        messageElement.className = `message-bubble ${data.from === currentUser ? 'own' : 'other'} fade-in`;
+                        
+                        const now = new Date();
+                        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                        
+                        // 根据文件类型选择图标
+                        let fileIcon = 'fa-file';
+                        if (data.file_type && data.file_type.startsWith('image/')) {
+                            fileIcon = 'fa-image';
+                        } else if (data.file_type && data.file_type.startsWith('audio/')) {
+                            fileIcon = 'fa-file-audio';
+                        } else if (data.file_type && data.file_type.startsWith('video/')) {
+                            fileIcon = 'fa-file-video';
+                        } else if (data.file_type && (data.file_type.includes('pdf') || data.file_type.includes('document'))) {
+                            fileIcon = 'fa-file-pdf';
+                        }
+                        
+                        // 如果是加密文件，添加加密图标
+                        const fileName = data.encrypted ? `🔒 ${data.file_name}` : data.file_name;
+                        
+                        messageElement.innerHTML = `
+                            <div class="text-xs opacity-75 mb-1">${data.from} · ${timeString}</div>
+                            <div class="file-message">
+                                <div class="file-icon">
+                                    <i class="fas ${fileIcon}"></i>
+                                </div>
+                                <div class="file-details">
+                                    <div class="file-name">${fileName}</div>
+                                    <div class="file-size">${formatFileSize(data.file_size)}</div>
+                                </div>
+                                <button class="file-download-btn" onclick="downloadFile('${data.file_data}', '${data.file_name}')">
+                                    ${data.encrypted ? '加密文件' : '下载'}
+                                </button>
+                            </div>
+                        `;
+                        
+                        messagesContainer.appendChild(messageElement);
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                } else {
+                    // 如果不在P2P聊天界面，显示系统消息
+                    const fileStatus = data.encrypted ? '加密文件' : '文件';
+                    addSystemMessage(`收到来自 ${data.from} 的${fileStatus}: ${data.file_name}`);
+                }
+            }
+            
+            // 监听表情发送确认
+            socket.on('emoji_sent', function(data) {
+                if (data.success) {
+                    console.log('表情发送成功');
+                } else {
+                    addSystemMessage(`表情发送失败: ${data.error}`);
+                }
+            });
+            
+            // 监听文件发送确认
+            socket.on('file_sent', function(data) {
+                if (data.success) {
+                    console.log('文件发送成功');
+                } else {
+                    addSystemMessage(`文件发送失败: ${data.error}`);
+                }
+            });
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Aurora Chat - P2P加密聊天系统已加载');
+            
+            // 开始状态检查
+            updateStatus();
+            setInterval(updateStatus, 10000);
+            
+            // 初始系统消息
+            addSystemMessage('系统启动完成。请登录开始真正的用户间通信。');
+            
+            // 连接到Socket.IO服务器
+            connectSocketIO();
+            
+            // 初始化表情选择器和文件上传功能
+            initEmojiPicker();
+            initFileUpload();
+            
+            // 初始化表情和文件事件监听器
+            setTimeout(initEmojiAndFileEvents, 1000);
+        });
+    </script>
+</body>
+</html>
