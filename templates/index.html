@@ -451,6 +451,9 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     
     <script>
+        // 系统配置
+        const API_BASE_URL = window.location.origin; // 使用当前页面的协议和域名
+        
         // 系统状态
         let currentUser = null;
         let socket = null;
@@ -604,7 +607,7 @@
             function decryptAndDisplayMessage(data) {
                 console.log('调用解密API:', data);
                 
-                fetch('/api/p2p/chat/decrypt', {
+                fetch(API_BASE_URL + '/api/p2p/chat/decrypt', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1374,7 +1377,7 @@
             console.log(`开始加密消息: ${message}`);
             
             // 调用后端API加密消息
-            fetch('/api/p2p/chat/encrypt', {
+            fetch(API_BASE_URL + '/api/p2p/chat/encrypt', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2255,7 +2258,7 @@
                 console.log('解密文件:', data.file_name);
                 
                 // 调用解密API
-                fetch('/api/p2p/chat/decrypt', {
+                fetch(API_BASE_URL + '/api/p2p/chat/decrypt', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
